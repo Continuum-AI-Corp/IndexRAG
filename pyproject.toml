@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "indexrag"
+version = "0.1.0"
+description = "IndexRAG shifts cross-document reasoning from online inference to offline indexing via bridging facts, enabling multi-hop QA with single-pass retrieval."
+readme = "README.md"
+license = {text = "Apache-2.0"}
+authors = [
+    {name = "Zhenghua Bao"},
+    {name = "Yi Shi"},
+]
+requires-python = ">=3.9"
+dependencies = [
+    "openai>=1.0",
+    "langchain-core>=0.2",
+    "langchain-community>=0.2",
+    "langchain-openai>=0.1",
+    "langchain-text-splitters>=0.2",
+    "faiss-cpu>=1.7",
+    "rank-bm25>=0.2",
+]
+
+[project.optional-dependencies]
+graph = ["fast-graphrag>=0.0.5"]
+benchmarks = ["datasets>=2.0"]
+dev = ["pytest", "ruff"]
+
+[tool.setuptools.packages.find]
+include = ["indexrag*"]
+
+[tool.ruff]
+# Prompt templates are kept verbatim so results stay reproducible, which leaves
+# a few long string literals in indexrag/bridging_facts/generator.py.
+line-length = 120
+target-version = "py39"

@@ -1,0 +1,16 @@
+# Core
+openai>=1.0
+langchain-core>=0.2
+langchain-community>=0.2
+langchain-openai>=0.1
+langchain-text-splitters>=0.2
+faiss-cpu>=1.7
+
+# Retrieval
+rank-bm25>=0.2
+
+# Benchmarks (optional)
+datasets>=2.0
+
+# Graph (optional)
+# fast-graphrag>=0.0.5
