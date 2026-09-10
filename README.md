@@ -83,7 +83,7 @@ with those methods rather than competing with them: adding them to IRCoT
 reaches **55.0 avg F1**.
 
 The saving is on the online side. Against HippoRAG2, retrieval is
-**6.6–10.4× faster**, on an index **17–21× smaller** and **30–50% cheaper** to
+**6.6–10.4× faster**, on an index **17–20× smaller** and **30–50% cheaper** to
 build.
 
 ## 🔨 Installation
@@ -195,14 +195,15 @@ examples/                 quickstart and a custom Stage 1 strategy
 
 ## ⚙️ Configuration
 
-Defaults match the setup reported in the paper:
+Settings behind the reported results. Retrieval depth is passed explicitly, as in
+the benchmark commands above:
 
 | | Value |
 |---|---|
 | LLM (all stages) | `gpt-4o-mini` |
 | Embeddings | `text-embedding-3-small` |
 | Vector store | FAISS, flat index |
-| Retrieval | top 5 by cosine similarity |
+| Retrieval | top 20 by cosine similarity, 10 passed to the LLM |
 | Bridge entity document frequency | 2 to 10 |
 | Source documents per bridge entity | at most 5 |
 | Facts per source document | at most 8 |
