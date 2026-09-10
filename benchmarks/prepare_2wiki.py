@@ -11,7 +11,7 @@ from typing import List, Dict, Any
 from collections import defaultdict
 
 
-def download_2wiki(split: str = "train", max_queries: int = 1000):
+def download_2wiki(split: str = "validation", max_queries: int = 1000):
     """Download 2WikiMultihopQA from HuggingFace."""
     from datasets import load_dataset
 
@@ -108,7 +108,8 @@ def main():
     parser.add_argument("--input", type=str, default=None, help="Local JSON file (downloads from HF if not provided)")
     parser.add_argument("--output", type=str, default="dataset/2wikimultihopqa_1000")
     parser.add_argument("--max-queries", type=int, default=1000)
-    parser.add_argument("--split", type=str, default="train")
+    parser.add_argument("--split", type=str, default="validation",
+                        help="Split to sample from. The reported results use validation.")
     args = parser.parse_args()
 
     if args.input:
