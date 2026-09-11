@@ -123,12 +123,16 @@ export ORCAROUTER_API_KEY=sk-orca-...
 
 # Option 2: sign in with your OrcaRouter account using OAuth + PKCE
 indexrag-auth login
-# On a remote/headless terminal: indexrag-auth login --no-browser
+# To open the displayed URL yourself on the same machine:
+indexrag-auth login --no-browser
 ```
 
-The login command opens the OrcaRouter consent page. Approve IndexRAG and paste
-the displayed authorization code into the terminal. It uses S256 PKCE without a
-client secret. Codes expire after ten minutes; a failed/canceled login leaves
+The login command opens the OrcaRouter consent page and listens on a random
+port bound to `127.0.0.1`. Approve IndexRAG; the browser redirects back automatically.
+The callback verifies the per-login state before exchanging the code using S256
+PKCE, without a client secret. Open the browser on the same machine as the CLI
+(or arrange an SSH forward for the displayed callback port). This avoids the
+unsupported `callback_url=oob` flow. Login expires after ten minutes; a failed/canceled login leaves
 your previous credentials unchanged. The resulting key is stored locally at
 `$XDG_CONFIG_HOME/indexrag/orcarouter.json` (default
 `~/.config/indexrag/orcarouter.json`) with owner-only file permissions. This is

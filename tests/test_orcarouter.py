@@ -90,12 +90,12 @@ def test_api_key_build_save_reload_query(gateway, monkeypatch, tmp_path):
 
 
 def test_pkce_saved_key_drives_real_embedding_client(gateway, monkeypatch):
-    verifier, url = orcarouter.begin_login()
+    verifier, url = orcarouter.begin_login("http://127.0.0.1:51733/cb", "test-state")
     query = parse_qs(urlsplit(url).query)
-    assert query["callback_url"] == ["oob"]
+    assert query["callback_url"] == ["http://127.0.0.1:51733/cb"]
     assert query["code_challenge_method"] == ["S256"]
     assert verifier not in url
-    assert orcarouter.begin_login()[0] != verifier
+    assert orcarouter.begin_login("http://127.0.0.1:51733/cb", "test-state")[0] != verifier
 
     def exchange(url, *, json, **kwargs):
         assert url == "https://www.orcarouter.ai/api/v1/auth/keys"
@@ -173,4 +173,4 @@ def test_provider_fails_closed_and_openai_still_default(monkeypatch):
 def test_no_insecure_remote_auth(monkeypatch):
     monkeypatch.setenv("ORCA_AUTH_BASE_URL", "http://example.com")
     with pytest.raises(ValueError):
-        orcarouter.begin_login()
+        orcarouter.begin_login("http://127.0.0.1:51733/cb", "test-state")

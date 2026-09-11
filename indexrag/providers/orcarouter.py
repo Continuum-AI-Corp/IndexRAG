@@ -2,7 +2,6 @@
 
 import argparse
 import base64
-import getpass
 import hashlib
 import json
 import os
@@ -10,8 +9,9 @@ import secrets
 import tempfile
 import time
 import webbrowser
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
-from urllib.parse import urlencode, urlsplit
+from urllib.parse import parse_qs, urlencode, urlsplit
 
 import httpx
 
@@ -86,7 +86,73 @@ def save_credential(key, scope):
         Path(temporary).unlink(missing_ok=True)
 
 
-def begin_login():
+class CallbackReceiver(HTTPServer):
+    """One local authorization attempt. Unrelated requests cannot finish it."""
+
+    def __init__(self):
+        self.state = secrets.token_urlsafe(32)
+        self.code = None
+        self.denied = False
+
+        class Handler(BaseHTTPRequestHandler):
+            def log_message(self, *args):
+                pass  # Never log callback URLs, which contain authorization codes.
+
+            def do_GET(self):
+                parsed = urlsplit(self.path)
+                params = parse_qs(parsed.query)
+                valid = (
+                    parsed.path == "/cb"
+                    and len(self.path) <= 8192
+                    and self.headers.get("Host") == self.server.authority
+                    and params.get("state") is not None
+                    and len(params["state"]) == 1
+                    and secrets.compare_digest(params["state"][0], self.server.state)
+                )
+                if not valid:
+                    status, message = 400, "Invalid login callback."
+                elif len(params.get("error", [])) == 1 and "code" not in params:
+                    self.server.denied = True
+                    status, message = 200, "Authorization declined. You can close this tab."
+                elif len(params.get("code", [])) == 1 and "error" not in params:
+                    self.server.code = params["code"][0]
+                    status, message = 200, "Authorization received. Return to the terminal to check login completion."
+                else:
+                    status, message = 400, "Missing or ambiguous authorization code."
+                body = message.encode("utf-8")
+                self.send_response(status)
+                self.send_header("Content-Type", "text/plain; charset=utf-8")
+                self.send_header("Content-Length", str(len(body)))
+                self.send_header("Cache-Control", "no-store")
+                self.send_header("Referrer-Policy", "no-referrer")
+                self.end_headers()
+                self.wfile.write(body)
+
+        super().__init__(("127.0.0.1", 0), Handler)
+        self.authority = f"127.0.0.1:{self.server_port}"
+        self.callback_url = f"http://{self.authority}/cb"
+        self.timeout = 0.5
+
+    def get_request(self):
+        connection, address = super().get_request()
+        connection.settimeout(2)
+        return connection, address
+
+    def handle_error(self, request, client_address):
+        pass  # A disconnected browser must not leak the callback in a traceback.
+
+    def wait(self, seconds=600):
+        deadline = time.monotonic() + seconds
+        while time.monotonic() < deadline:
+            self.handle_request()
+            if self.denied:
+                raise ValueError("OrcaRouter authorization was declined.")
+            if self.code:
+                return self.code
+        raise ValueError("Login expired; run indexrag-auth login again.")
+
+
+def begin_login(callback_url, state):
     verifier = secrets.token_urlsafe(48)
     challenge = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode("ascii")).digest()).rstrip(b"=").decode("ascii")
     url = (
@@ -94,10 +160,10 @@ def begin_login():
         + "/auth?"
         + urlencode(
             {
-                "callback_url": "oob",
+                "callback_url": callback_url,
                 "code_challenge": challenge,
                 "code_challenge_method": "S256",
-                "state": secrets.token_urlsafe(32),
+                "state": state,
                 "app_name": "IndexRAG",
                 "scope": "api",
             }
@@ -143,15 +209,13 @@ def main():
     args = parser.parse_args()
     try:
         if args.command == "login":
-            verifier, url = begin_login()
-            started = time.monotonic()
-            print("Open this URL, approve IndexRAG, then paste the displayed authorization code:\n" + url)
-            if not args.no_browser:
-                webbrowser.open(url)
-            code = getpass.getpass("Authorization code: ")
-            if time.monotonic() - started >= 600:
-                raise ValueError("Login expired; run indexrag-auth login again.")
-            exchange_code(code, verifier)
+            with CallbackReceiver() as receiver:
+                verifier, url = begin_login(receiver.callback_url, receiver.state)
+                print("Open this URL and approve IndexRAG. The browser will return automatically:\n" + url, flush=True)
+                if not args.no_browser:
+                    webbrowser.open(url)
+                code = receiver.wait(600)
+                exchange_code(code, verifier)
             print("OrcaRouter login saved. Embeddings can use INDEXRAG_EMBEDDING_PROVIDER=orcarouter.")
         elif args.command == "logout":
             credential_path().unlink(missing_ok=True)
