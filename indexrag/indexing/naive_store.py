@@ -26,6 +26,9 @@ def build_naive_store(
     doc_dir: Optional[Path] = None,
     chunk_size: int = 400,
     chunk_overlap: int = 80,
+    *,
+    embedding_model: Optional[str] = None,
+    embedding_provider: Optional[str] = None,
 ) -> bool:
     """
     Build a naive RAG vector store (simple text chunks).
@@ -70,7 +73,7 @@ def build_naive_store(
     logger.info(f"Split {len(documents)} docs into {len(chunked_docs)} chunks")
 
     # Store
-    search = SemanticSearch(enable_bm25=True)
+    search = SemanticSearch(embedding_model=embedding_model, embedding_provider=embedding_provider, enable_bm25=True)
     search.create_vector_store(
         documents=chunked_docs,
         vector_store_path=str(vector_store_dir),

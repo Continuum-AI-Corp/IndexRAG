@@ -112,6 +112,72 @@ cp .env.example .env
 export OPENAI_API_KEY=sk-...
 ```
 
+### OrcaRouter embeddings: API key or PKCE login
+
+OrcaRouter can provide embeddings for IndexRAG stores, Naive RAG stores and
+semantic/hybrid retrieval. Choose either authentication method:
+
+```bash
+# Option 1: use your existing API key
+export ORCAROUTER_API_KEY=sk-orca-...
+
+# Option 2: sign in with your OrcaRouter account using OAuth + PKCE
+indexrag-auth login
+# On a remote/headless terminal: indexrag-auth login --no-browser
+```
+
+The login command opens the OrcaRouter consent page. Approve IndexRAG and paste
+the displayed authorization code into the terminal. It uses S256 PKCE without a
+client secret. Codes expire after ten minutes; a failed/canceled login leaves
+your previous credentials unchanged. The resulting key is stored locally at
+`$XDG_CONFIG_HOME/indexrag/orcarouter.json` (default
+`~/.config/indexrag/orcarouter.json`) with owner-only file permissions. This is
+local credential storage, not an encrypted system keychain. An explicit
+`ORCAROUTER_API_KEY` takes precedence over the saved login.
+
+Enable the provider in every indexing and query process:
+
+```bash
+export INDEXRAG_EMBEDDING_PROVIDER=orcarouter
+# Optional; this is the OrcaRouter default embedding model:
+export INDEXRAG_EMBEDDING_MODEL=openai/text-embedding-3-small
+
+# Embedding-only example: build a Naive RAG store from .txt documents
+python -m scripts.build_kb --data-dir path/to/documents --kb-type naive
+```
+
+```python
+from indexrag.retrieval import SemanticSearch
+
+search = SemanticSearch(embedding_provider="orcarouter")
+search.load_vector_store("vector_store/conventional_vector")
+for document, distance in search.search("What connects these documents?", top_k=3):
+    print(document.page_content, distance)
+```
+
+Use the same provider and embedding model when building and loading an index.
+Rebuild existing indexes when changing embedding models; equal vector dimensions
+do not imply compatible embedding spaces. The `embedding_provider` and
+`embedding_model` keyword arguments also work with `build_indexrag_store` and
+`build_naive_store`. Existing calls default to OpenAI.
+
+`indexrag-auth status` reports whether credentials are configured without
+printing them. `indexrag-auth logout` removes the local login; revoke the key in
+your OrcaRouter console to invalidate it remotely. Environment keys are not
+removed by logout.
+
+The defaults are `https://api.orcarouter.ai/v1` for embeddings and
+`https://www.orcarouter.ai` for authorization. Override them independently with
+`ORCA_API_BASE_URL` and `ORCA_AUTH_BASE_URL`, or use `ORCA_BASE_URL` as a shared
+fallback. Saved keys are bound to the API URL used at login; changing that URL
+requires a new login or an explicitly configured key.
+
+This setting changes embeddings only. AKU extraction, bridging generation and
+answering continue to use their existing OpenAI configuration; the embedding-only
+Naive RAG example above does not require an OpenAI key. The optional GraphRAG
+backend keeps its own provider configuration. `.env` is an example configuration
+file; export variables into the shell (the scripts do not automatically load it).
+
 ## 🚀 Quick Start
 
 The shortest path from a folder of documents to an answer:
