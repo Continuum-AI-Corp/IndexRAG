@@ -164,8 +164,11 @@ for document, distance in search.search("What connects these documents?", top_k=
 Oversized OrcaRouter inputs are split into Unicode-safe raw-text chunks (up to
 8,000 UTF-8 bytes for OpenAI models, 2,000 for other model IDs). Chunk vectors
 are averaged using UTF-8 byte lengths as weights, then normalized to produce
-one vector per original document or query. Short inputs keep their original
-vectors. Requests contain at most 32 chunks to bound aggregate request size;
+one vector per original document or query. Short-input vectors are normalized
+as well, so FAISS compares long and short inputs on the same scale. Rebuild
+indexes created with earlier versions of this integration if your embedding
+model returns non-unit vectors. Requests contain at most 32 chunks to bound
+aggregate request size;
 both synchronous and asynchronous embedding methods use this behavior.
 
 Use the same provider and embedding model when building and loading an index.

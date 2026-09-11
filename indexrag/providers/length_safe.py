@@ -43,9 +43,6 @@ class LengthSafeEmbeddings(Embeddings):
             parts = vectors[start:end]
             if not parts or not parts[0] or any(len(v) != len(parts[0]) for v in parts):
                 raise ValueError("Inconsistent embedding dimensions.")
-            if end - start == 1:
-                result.append(parts[0])
-                continue
             weights = [len(chunk.encode("utf-8")) for chunk in chunks[start:end]]
             total = sum(weights)
             mean = [sum(v[i] * w for v, w in zip(parts, weights)) / total for i in range(len(parts[0]))]

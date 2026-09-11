@@ -263,3 +263,35 @@ def test_logout_in_another_process_invalidates_pending_login(monkeypatch):
     with pytest.raises(ValueError, match="superseded"):
         orcarouter.save_credential("sk-orca-late", "api", attempt)
     assert not orcarouter.credential_path().exists()
+
+
+def test_non_unit_vectors_preserve_long_short_retrieval_ranking():
+    import asyncio
+
+    from langchain_community.vectorstores import FAISS
+
+    from indexrag.providers.length_safe import LengthSafeEmbeddings
+
+    class Backend:
+        model = "custom-embedding"
+        chunk_size = 32
+
+        def embed_documents(self, texts):
+            return [[10.0, 0.0] if text.startswith("a") else [8.0, 6.0] for text in texts]
+
+        async def aembed_documents(self, texts):
+            return self.embed_documents(texts)
+
+    embedding = LengthSafeEmbeddings(Backend())
+    documents = [
+        Document(page_content="a" * 4000, metadata={"topic": "matching"}),
+        Document(page_content="b", metadata={"topic": "unrelated"}),
+    ]
+    store = FAISS.from_documents(documents, embedding)
+    hits = store.similarity_search_with_score("a", k=2)
+    assert hits[0][0].metadata["topic"] == "matching"
+    assert float(hits[0][1]) == pytest.approx(0.0)
+    assert embedding.embed_query("a") == [1.0, 0.0]
+    assert embedding.embed_query("b") == pytest.approx([0.8, 0.6])
+    assert asyncio.run(embedding.aembed_query("a")) == [1.0, 0.0]
+    assert asyncio.run(embedding.aembed_documents(["a", "a" * 4000])) == [[1.0, 0.0], [1.0, 0.0]]
