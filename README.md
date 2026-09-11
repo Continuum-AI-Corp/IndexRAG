@@ -129,6 +129,8 @@ indexrag-auth login --no-browser
 
 The login command opens the OrcaRouter consent page and listens on a random
 port bound to `127.0.0.1`. Approve IndexRAG; the browser redirects back automatically.
+After the key is saved, the callback page attempts to close its tab automatically;
+if the browser blocks this, it displays a manual-close message.
 The callback verifies the per-login state before exchanging the code using S256
 PKCE, without a client secret. Open the browser on the same machine as the CLI
 (or arrange an SSH forward for the displayed callback port). This avoids the

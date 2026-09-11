@@ -93,6 +93,8 @@ class CallbackReceiver(HTTPServer):
         self.state = secrets.token_urlsafe(32)
         self.code = None
         self.denied = False
+        self.failure = None
+        self.on_code = None
 
         class Handler(BaseHTTPRequestHandler):
             def log_message(self, *args):
@@ -109,19 +111,38 @@ class CallbackReceiver(HTTPServer):
                     and len(params["state"]) == 1
                     and secrets.compare_digest(params["state"][0], self.server.state)
                 )
+                content_type = "text/plain; charset=utf-8"
                 if not valid:
                     status, message = 400, "Invalid login callback."
                 elif len(params.get("error", [])) == 1 and "code" not in params:
                     self.server.denied = True
                     status, message = 200, "Authorization declined. You can close this tab."
                 elif len(params.get("code", [])) == 1 and "error" not in params:
-                    self.server.code = params["code"][0]
-                    status, message = 200, "Authorization received. Return to the terminal to check login completion."
+                    code = params["code"][0]
+                    try:
+                        if self.server.on_code:
+                            self.server.on_code(code)
+                    except (ValueError, OSError) as exc:
+                        self.server.failure = exc
+                        status, message = 400, "Login failed. Return to the terminal for details and try again."
+                    else:
+                        self.server.code = code
+                        status = 200
+                        content_type = "text/html; charset=utf-8"
+                        message = """<!doctype html>
+<html lang="en"><meta charset="utf-8"><title>IndexRAG login complete</title>
+<body><h1>Login successful</h1>
+<p>Your OrcaRouter credentials have been saved. This tab will close automatically.</p>
+<p>If it stays open, your browser has blocked automatic closing. You can close it now.</p>
+<script>
+history.replaceState(null, "", "/cb");
+setTimeout(function () { window.close(); }, 200);
+</script></body></html>"""
                 else:
                     status, message = 400, "Missing or ambiguous authorization code."
                 body = message.encode("utf-8")
                 self.send_response(status)
-                self.send_header("Content-Type", "text/plain; charset=utf-8")
+                self.send_header("Content-Type", content_type)
                 self.send_header("Content-Length", str(len(body)))
                 self.send_header("Cache-Control", "no-store")
                 self.send_header("Referrer-Policy", "no-referrer")
@@ -141,10 +162,13 @@ class CallbackReceiver(HTTPServer):
     def handle_error(self, request, client_address):
         pass  # A disconnected browser must not leak the callback in a traceback.
 
-    def wait(self, seconds=600):
+    def wait(self, seconds=600, on_code=None):
+        self.on_code = on_code
         deadline = time.monotonic() + seconds
         while time.monotonic() < deadline:
             self.handle_request()
+            if self.failure:
+                raise self.failure
             if self.denied:
                 raise ValueError("OrcaRouter authorization was declined.")
             if self.code:
@@ -214,8 +238,7 @@ def main():
                 print("Open this URL and approve IndexRAG. The browser will return automatically:\n" + url, flush=True)
                 if not args.no_browser:
                     webbrowser.open(url)
-                code = receiver.wait(600)
-                exchange_code(code, verifier)
+                receiver.wait(600, on_code=lambda code: exchange_code(code, verifier))
             print("OrcaRouter login saved. Embeddings can use INDEXRAG_EMBEDDING_PROVIDER=orcarouter.")
         elif args.command == "logout":
             credential_path().unlink(missing_ok=True)
