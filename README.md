@@ -161,6 +161,13 @@ for document, distance in search.search("What connects these documents?", top_k=
     print(document.page_content, distance)
 ```
 
+Oversized OrcaRouter inputs are split into Unicode-safe raw-text chunks (up to
+8,000 UTF-8 bytes for OpenAI models, 2,000 for other model IDs). Chunk vectors
+are averaged using UTF-8 byte lengths as weights, then normalized to produce
+one vector per original document or query. Short inputs keep their original
+vectors. Requests contain at most 32 chunks to bound aggregate request size;
+both synchronous and asynchronous embedding methods use this behavior.
+
 Use the same provider and embedding model when building and loading an index.
 Rebuild existing indexes when changing embedding models; equal vector dimensions
 do not imply compatible embedding spaces. The `embedding_provider` and
@@ -170,7 +177,10 @@ do not imply compatible embedding spaces. The `embedding_provider` and
 `indexrag-auth status` reports whether credentials are configured without
 printing them. `indexrag-auth logout` removes the local login; revoke the key in
 your OrcaRouter console to invalidate it remotely. Environment keys are not
-removed by logout.
+removed by logout. Starting another login or running logout invalidates older
+pending login attempts. A cross-process lock protects the generation check and
+credential replacement, so a delayed callback cannot restore a logged-out key
+or overwrite a more recent login.
 
 The defaults are `https://api.orcarouter.ai/v1` for embeddings and
 `https://www.orcarouter.ai` for authorization. Override them independently with

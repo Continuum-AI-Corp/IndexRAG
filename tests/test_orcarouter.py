@@ -174,3 +174,92 @@ def test_no_insecure_remote_auth(monkeypatch):
     monkeypatch.setenv("ORCA_AUTH_BASE_URL", "http://example.com")
     with pytest.raises(ValueError):
         orcarouter.begin_login("http://127.0.0.1:51733/cb", "test-state")
+
+
+def test_long_unicode_documents_and_queries(gateway, monkeypatch, tmp_path):
+    monkeypatch.setenv("ORCAROUTER_API_KEY", "sk-orca-test")
+    text = "apple 海洋🐋 " * 4000
+    search = SemanticSearch(enable_bm25=False)
+    search.create_vector_store([Document(page_content=text)], str(tmp_path / "long"))
+    chunks = [chunk for _, _, data in gateway for chunk in data["input"]]
+    assert len(chunks) > 1
+    assert "".join(chunks) == text
+    assert all(len(chunk.encode("utf-8")) <= 2000 for chunk in chunks)
+    assert search.vector_store.index.ntotal == 1
+    assert search.search(text, top_k=1)[0][0].page_content == text
+
+
+def test_async_long_inputs_and_order(gateway, monkeypatch):
+    import asyncio
+
+    monkeypatch.setenv("ORCAROUTER_API_KEY", "sk-orca-test")
+    embedding = create_embeddings()
+    vectors = asyncio.run(embedding.aembed_documents(["apple " * 9000, "ocean"]))
+    assert vectors == [[1.0, 0.0], [0.0, 1.0]]
+    assert asyncio.run(embedding.aembed_query("apple " * 9000)) == [1.0, 0.0]
+
+
+def test_chunk_vectors_use_weighted_normalized_mean(monkeypatch):
+    from indexrag.providers.length_safe import LengthSafeEmbeddings
+
+    class Backend:
+        model = "test-model"
+        chunk_size = 32
+
+        def embed_documents(self, texts):
+            return [[1.0, 0.0] if t[0] == "a" else [0.0, 1.0] for t in texts]
+
+    e = LengthSafeEmbeddings(Backend())
+    vector = e.embed_query("a" * 2000 + "b" * 1000)
+    assert vector == pytest.approx([2 / (5**0.5), 1 / (5**0.5)])
+    assert e.embed_documents([]) == []
+    with pytest.raises(ValueError, match="empty"):
+        e.embed_query("")
+
+
+@pytest.mark.parametrize("action", ["logout", "new_login"])
+def test_late_exchange_cannot_restore_or_overwrite_credentials(monkeypatch, action):
+    orcarouter.save_credential("sk-orca-initial", "api")
+    old_attempt = orcarouter.start_login()
+    arrived, release = threading.Event(), threading.Event()
+    errors = []
+
+    def exchange(*args, **kwargs):
+        arrived.set()
+        assert release.wait(5)
+        return httpx.Response(200, json={"key": "sk-orca-stale", "scope": "api"})
+
+    def finish():
+        try:
+            orcarouter.exchange_code("old-code", "old-verifier", old_attempt)
+        except ValueError as exc:
+            errors.append(str(exc))
+
+    monkeypatch.setattr(orcarouter.httpx, "post", exchange)
+    thread = threading.Thread(target=finish)
+    thread.start()
+    assert arrived.wait(5)
+    if action == "logout":
+        orcarouter.logout()
+    else:
+        attempt = orcarouter.start_login()
+        orcarouter.save_credential("sk-orca-new", "api", attempt)
+    release.set()
+    thread.join(5)
+    assert not thread.is_alive()
+    assert errors and "superseded" in errors[0]
+    if action == "logout":
+        assert not orcarouter.credential_path().exists()
+    else:
+        assert orcarouter.api_key() == "sk-orca-new"
+
+
+def test_logout_in_another_process_invalidates_pending_login(monkeypatch):
+    import subprocess
+    import sys
+
+    attempt = orcarouter.start_login()
+    subprocess.run([sys.executable, "-m", "indexrag.providers.orcarouter", "logout"], check=True, capture_output=True)
+    with pytest.raises(ValueError, match="superseded"):
+        orcarouter.save_credential("sk-orca-late", "api", attempt)
+    assert not orcarouter.credential_path().exists()

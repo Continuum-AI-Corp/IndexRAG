@@ -15,6 +15,8 @@ from urllib.parse import parse_qs, urlencode, urlsplit
 
 import httpx
 
+from .login_state import generation, invalidate, locked_directory
+
 
 def origin(kind):
     default = "https://www.orcarouter.ai" if kind == "AUTH" else "https://api.orcarouter.ai"
@@ -70,7 +72,30 @@ def api_key():
     return key
 
 
-def save_credential(key, scope):
+def save_credential(key, scope, attempt=None):
+    path = credential_path()
+    with locked_directory(path):
+        if attempt is not None and generation(path) != attempt:
+            raise ValueError("Login superseded by a newer login or logout; credentials were not saved.")
+        if attempt is None:
+            invalidate(path)
+        _write_credential(key, scope)
+
+
+def start_login():
+    path = credential_path()
+    with locked_directory(path):
+        return invalidate(path)
+
+
+def logout():
+    path = credential_path()
+    with locked_directory(path):
+        invalidate(path)
+        path.unlink(missing_ok=True)
+
+
+def _write_credential(key, scope):
     path = credential_path()
     path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
     path.parent.chmod(0o700)
@@ -196,7 +221,9 @@ def begin_login(callback_url, state):
     return verifier, url
 
 
-def exchange_code(code, verifier):
+def exchange_code(code, verifier, attempt=None):
+    if attempt is None:
+        attempt = start_login()
     if not code.strip():
         raise ValueError("Authorization code is empty.")
     try:
@@ -221,7 +248,7 @@ def exchange_code(code, verifier):
         raise ValueError("OrcaRouter authorization did not return a valid API key.")
     if data.get("scope") != "api":
         raise ValueError("OrcaRouter did not grant the requested api scope; credentials were not saved.")
-    save_credential(data["key"], data["scope"])
+    save_credential(data["key"], data["scope"], attempt)
 
 
 def main():
@@ -234,14 +261,15 @@ def main():
     try:
         if args.command == "login":
             with CallbackReceiver() as receiver:
+                attempt = start_login()
                 verifier, url = begin_login(receiver.callback_url, receiver.state)
                 print("Open this URL and approve IndexRAG. The browser will return automatically:\n" + url, flush=True)
                 if not args.no_browser:
                     webbrowser.open(url)
-                receiver.wait(600, on_code=lambda code: exchange_code(code, verifier))
+                receiver.wait(600, on_code=lambda code: exchange_code(code, verifier, attempt))
             print("OrcaRouter login saved. Embeddings can use INDEXRAG_EMBEDDING_PROVIDER=orcarouter.")
         elif args.command == "logout":
-            credential_path().unlink(missing_ok=True)
+            logout()
             print(
                 "Local OrcaRouter login removed. Environment keys are unchanged; revoke keys in your OrcaRouter console."
             )
