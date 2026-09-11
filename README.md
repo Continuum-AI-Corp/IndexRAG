@@ -112,6 +112,80 @@ cp .env.example .env
 export OPENAI_API_KEY=sk-...
 ```
 
+### Optional: OrcaRouter PKCE login and LLM
+
+This branch supports OrcaRouter for both LLM calls and embeddings. This is an
+optional provider integration: the paper's results and experimental instructions
+remain unchanged. Runs using a different model are separate experiments.
+
+**1. Check out this branch and install the login command:**
+
+```bash
+git fetch origin
+git switch feat/orcarouter-pkce-llm
+pip install -e .
+```
+
+**2. Authenticate with PKCE (once):**
+
+```bash
+indexrag-auth login
+indexrag-auth status
+```
+
+Approve the request in the browser on the same machine as the terminal. The
+browser returns to a local callback and the command saves your credentials;
+the success page attempts to close automatically. If no browser opens, run
+`indexrag-auth login --no-browser` and open the displayed URL yourself.
+
+Both LLM and embedding calls reuse this login. Credentials are saved at
+`~/.config/indexrag/orcarouter.json` (or under `XDG_CONFIG_HOME`). Alternatively,
+set `ORCAROUTER_API_KEY` instead of logging in; an environment key takes
+precedence over the saved login. `indexrag-auth logout` removes the local login.
+
+**3. Enable LLM and embeddings in your shell:**
+
+```bash
+export INDEXRAG_LLM_PROVIDER=orcarouter
+export INDEXRAG_LLM_MODEL=deepseek/deepseek-v4.1-flash
+export INDEXRAG_EMBEDDING_PROVIDER=orcarouter
+export INDEXRAG_EMBEDDING_MODEL=openai/text-embedding-3-small
+```
+
+The LLM setting applies to AKU extraction, custom summaries, bridging facts and
+benchmark answer generation. The two providers are independent: selecting only
+the LLM provider leaves embeddings on OpenAI. With both set as above, these
+vector-pipeline stages do not require an OpenAI key. Export the settings in each
+new shell; the scripts do not automatically load `.env`.
+
+**4. Extract knowledge, build an index and retrieve from your `.txt` documents:**
+
+```bash
+python -m examples.quickstart --data-dir path/to/documents --max-docs 5
+```
+
+This writes `vector_store/quickstart_indexrag`. To generate an LLM answer from
+that index, run the following from the repository root in the same environment:
+
+```python
+from indexrag.retrieval import SemanticSearch
+from benchmarks.evaluate import generate_answer
+
+search = SemanticSearch()
+search.load_vector_store("vector_store/quickstart_indexrag")
+question = "What is the main topic discussed in these documents?"
+hits = search.search(question, top_k=3)
+context = "\n\n".join(document.page_content for document, _ in hits)
+print(generate_answer(context, question))
+```
+
+Use matching embedding settings for indexing and retrieval, and separate
+indexes/caches for different experimental configurations. Without provider
+or model overrides, the original OpenAI defaults remain in effect. The optional
+GraphRAG backend has its own provider configuration.
+See the [full integration guide](docs/orcarouter.md) for endpoint overrides,
+credential handling and reproducibility details.
+
 ## 🚀 Quick Start
 
 The shortest path from a folder of documents to an answer:
@@ -224,9 +298,3 @@ CC BY-SA 4.0, 2WikiMultiHopQA is Apache-2.0. FAISS is MIT.
 Questions and bug reports are best filed as
 [issues](https://github.com/Continuum-AI-Corp/IndexRAG/issues).
 For anything else, `research@orcarouter.ai`.
-
-## Optional provider integration
-
-For API-key or PKCE authentication and optional OrcaRouter embedding/LLM
-configuration, see the [integration guide](docs/orcarouter.md). The adapter is
-opt-in; alternative-model results are separate from the paper's reported results.
