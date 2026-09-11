@@ -7,6 +7,8 @@ import logging
 from pathlib import Path
 from typing import Dict, Optional
 
+from ..providers.llm import chat_completion, resolve_llm_model
+
 from .schema import AKU, AKUExtractionResult
 from .prompts.loader import load_system_prompt, load_user_prompt
 
@@ -56,7 +58,7 @@ def extract_akus_from_chunk(
     chunk: str,
     chunk_id: str = "",
     source: str = "",
-    model: str = "gpt-4o-mini",
+    model: Optional[str] = None,
     max_tokens: int = 8000,
     custom_prompt_file: Optional[str] = None,
 ) -> AKUExtractionResult:
@@ -74,7 +76,6 @@ def extract_akus_from_chunk(
     Returns:
         AKUExtractionResult with extracted AKUs.
     """
-    import openai
 
     # Build prompt
     if custom_prompt_file:
@@ -86,8 +87,8 @@ def extract_akus_from_chunk(
         user_prompt = load_user_prompt()
 
     try:
-        client = openai.OpenAI()
-        completion = client.chat.completions.create(
+        model = resolve_llm_model(model)
+        completion = chat_completion(
             model=model,
             messages=[
                 {"role": "system", "content": sys_prompt},
@@ -131,7 +132,7 @@ def extract_akus_from_chunk(
 def extract_summary_from_chunk(
     chunk: str,
     custom_prompt_file: str,
-    model: str = "gpt-4o-mini",
+    model: Optional[str] = None,
     max_tokens: int = 8000,
 ) -> str:
     """
@@ -146,14 +147,13 @@ def extract_summary_from_chunk(
     Returns:
         Raw LLM response text.
     """
-    import openai
 
     with open(Path(custom_prompt_file), "r", encoding="utf-8") as f:
         sys_prompt = f.read().replace("{text}", chunk)
 
     try:
-        client = openai.OpenAI()
-        completion = client.chat.completions.create(
+        model = resolve_llm_model(model)
+        completion = chat_completion(
             model=model,
             messages=[
                 {"role": "system", "content": sys_prompt},

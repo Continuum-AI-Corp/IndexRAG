@@ -41,3 +41,6 @@ include = ["indexrag*"]
 # a few long string literals in indexrag/bridging_facts/generator.py.
 line-length = 120
 target-version = "py39"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]

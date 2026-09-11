@@ -20,7 +20,7 @@ def main():
     parser = argparse.ArgumentParser(description="Generate bridging facts")
     parser.add_argument("--cache", type=str, required=True, help="Path to AKU extraction cache JSON")
     parser.add_argument("--output", type=str, default=None, help="Output JSON path (default: auto)")
-    parser.add_argument("--model", type=str, default="gpt-4o-mini")
+    parser.add_argument("--model", type=str, default=None)
     parser.add_argument("--min-entity-len", type=int, default=4)
     parser.add_argument("--min-doc-freq", type=int, default=2)
     parser.add_argument("--max-doc-freq", type=int, default=10)

@@ -24,7 +24,7 @@ def main():
     parser.add_argument("--data-dir", type=str, required=True)
     parser.add_argument("--prompt", type=str, default=None,
                         help="Custom system prompt .md file (must contain {text} placeholder)")
-    parser.add_argument("--model", type=str, default="gpt-4o-mini")
+    parser.add_argument("--model", type=str, default=None)
     parser.add_argument("--output", type=str, default="custom_akus.json")
     args = parser.parse_args()
 

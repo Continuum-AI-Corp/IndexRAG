@@ -9,6 +9,8 @@ from typing import Dict, List, Any, Tuple, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
+from ..providers.llm import chat_completion
+
 from .entity_linker import (
     find_bridge_entities,
     collect_entity_facts,
@@ -38,7 +40,7 @@ MAX_FACTS_PER_DOC = 8
 def generate_bridging_facts_llm(
     entity: str,
     doc_facts_list: List[Tuple[str, List[str]]],
-    model: str = "gpt-4o-mini",
+    model: Optional[str] = None,
 ) -> List[str]:
     """
     Call LLM to generate bridging facts for one entity across multiple documents.
@@ -51,7 +53,6 @@ def generate_bridging_facts_llm(
     Returns:
         List of bridging fact strings.
     """
-    import openai
 
     sections = []
     for source_name, facts in doc_facts_list:
@@ -67,8 +68,7 @@ def generate_bridging_facts_llm(
         doc_sections="\n\n".join(sections),
     )
 
-    client = openai.OpenAI()
-    completion = client.chat.completions.create(
+    completion = chat_completion(
         model=model,
         messages=[
             {
@@ -104,7 +104,7 @@ def generate_all_bridging_facts(
     max_doc_freq: int = 10,
     concurrency: int = 10,
     save_interval: int = 200,
-    model: str = "gpt-4o-mini",
+    model: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Generate bridging facts for all cross-document bridge entities.

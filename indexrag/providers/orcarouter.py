@@ -252,7 +252,7 @@ def exchange_code(code, verifier, attempt=None):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="OrcaRouter embedding credentials for IndexRAG")
+    parser = argparse.ArgumentParser(description="OrcaRouter credentials for IndexRAG")
     parser.add_argument("command", choices=("login", "status", "logout"))
     parser.add_argument(
         "--no-browser", action="store_true", help="Print the authorization URL without opening a browser"
@@ -267,7 +267,7 @@ def main():
                 if not args.no_browser:
                     webbrowser.open(url)
                 receiver.wait(600, on_code=lambda code: exchange_code(code, verifier, attempt))
-            print("OrcaRouter login saved. Embeddings can use INDEXRAG_EMBEDDING_PROVIDER=orcarouter.")
+            print("OrcaRouter login saved. Set INDEXRAG_EMBEDDING_PROVIDER=orcarouter and/or INDEXRAG_LLM_PROVIDER=orcarouter.")
         elif args.command == "logout":
             logout()
             print(
@@ -275,7 +275,7 @@ def main():
             )
         else:
             api_key()
-            print("OrcaRouter embedding credentials configured (not a connectivity check).")
+            print("OrcaRouter credentials configured (not a connectivity check).")
     except (ValueError, OSError) as exc:
         parser.exit(1, str(exc) + "\n")
     except (KeyboardInterrupt, EOFError):

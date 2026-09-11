@@ -14,9 +14,10 @@ import json
 import sys
 import logging
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
-from openai import OpenAI
+from indexrag.providers import create_embeddings
+from indexrag.providers.llm import chat_completion, resolve_llm_model
 
 from benchmarks.metrics import f1_score, substring_match, compute_metrics
 
@@ -55,10 +56,9 @@ Q: "Are they both American?"
 The context is supporting material - use it along with reasoning to provide the most accurate answer."""
 
 
-def generate_answer(context: str, query: str, model: str = "gpt-4o-mini") -> str:
+def generate_answer(context: str, query: str, model: Optional[str] = None) -> str:
     """Generate answer using LLM given context and query."""
-    client = OpenAI()
-    response = client.chat.completions.create(
+    response = chat_completion(
         model=model,
         messages=[
             {"role": "system", "content": ANSWER_PROMPT},
@@ -75,7 +75,7 @@ def evaluate_vector_kb(
     queries: List[Dict[str, Any]],
     top_k: int = 5,
     context_docs: int = CONTEXT_DOCS,
-    llm_model: str = "gpt-4o-mini",
+    llm_model: Optional[str] = None,
     kb_type: str = "indexrag",
 ) -> Dict[str, Any]:
     """
@@ -93,9 +93,8 @@ def evaluate_vector_kb(
         Dict with results and metrics.
     """
     from langchain_community.vectorstores import FAISS
-    from langchain_openai import OpenAIEmbeddings
 
-    embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
+    embeddings = create_embeddings()
     vectorstore = FAISS.load_local(
         str(kb_path), embeddings, allow_dangerous_deserialization=True
     )
@@ -147,7 +146,7 @@ def evaluate_vector_kb(
 def evaluate_graph_kb(
     graph_dir: str,
     queries: List[Dict[str, Any]],
-    llm_model: str = "gpt-4o-mini",
+    llm_model: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Evaluate a GraphRAG KB on a set of queries.
@@ -224,7 +223,7 @@ def main():
     parser.add_argument("--top-k", type=int, default=20, help="Top-k retrieval")
     parser.add_argument("--context-docs", type=int, default=CONTEXT_DOCS,
                         help="Max docs used for LLM context (default: 10)")
-    parser.add_argument("--llm-model", type=str, default="gpt-4o-mini", help="LLM for answer generation")
+    parser.add_argument("--llm-model", type=str, default=None, help="LLM for answer generation")
     parser.add_argument("--kb-path", type=str, default=None, help="Path to KB directory (overrides auto-detection)")
     parser.add_argument("--output", type=str, default=None, help="Output JSON path")
     args = parser.parse_args()
@@ -255,7 +254,7 @@ def main():
 
     print(f"Dataset: {args.dataset} ({len(queries)} queries)")
     print(f"KB: {args.kb_type} at {kb_path}")
-    print(f"Top-k: {args.top_k}, Context docs: {args.context_docs}, LLM: {args.llm_model}")
+    print(f"Top-k: {args.top_k}, Context docs: {args.context_docs}, LLM: {resolve_llm_model(args.llm_model)}")
 
     if args.kb_type == "graph":
         result = evaluate_graph_kb(

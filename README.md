@@ -91,7 +91,7 @@ build.
 ### Prerequisites
 
 - Python 3.9 or newer
-- An OpenAI API key (used for extraction, bridging, embeddings and answering)
+- An OpenAI API key, or an OrcaRouter API key / account login for the vector RAG pipeline
 
 ### Setup
 
@@ -191,11 +191,56 @@ The defaults are `https://api.orcarouter.ai/v1` for embeddings and
 fallback. Saved keys are bound to the API URL used at login; changing that URL
 requires a new login or an explicitly configured key.
 
-This setting changes embeddings only. AKU extraction, bridging generation and
-answering continue to use their existing OpenAI configuration; the embedding-only
-Naive RAG example above does not require an OpenAI key. The optional GraphRAG
-backend keeps its own provider configuration. `.env` is an example configuration
-file; export variables into the shell (the scripts do not automatically load it).
+### OrcaRouter LLM: extraction, bridging and answers
+
+The same API key or saved PKCE login can also power AKU extraction, custom
+summaries, bridging-fact generation and benchmark answer generation. Enable
+LLM and embedding providers independently:
+
+```bash
+# Reuse your existing login; no new login is needed.
+export INDEXRAG_LLM_PROVIDER=orcarouter
+export INDEXRAG_LLM_MODEL=deepseek/deepseek-v4.1-flash
+export INDEXRAG_EMBEDDING_PROVIDER=orcarouter
+export INDEXRAG_EMBEDDING_MODEL=openai/text-embedding-3-small
+
+# Extract AKUs, embed them, and retrieve with one OrcaRouter account:
+python -m examples.quickstart --data-dir path/to/documents
+
+# Or run individual stages:
+python -m scripts.extract_akus --data-dir path/to/documents
+python -m scripts.generate_bridging --cache cache/YOUR_CACHE_faqs.json
+```
+
+The default DeepSeek model uses non-thinking mode so reasoning does not consume
+the output budget for JSON extraction and short answers. Empty answer text is
+reported as an error.
+
+OrcaRouter defaults to `deepseek/deepseek-v4.1-flash` for chat and
+`openai/text-embedding-3-small` for embeddings. An explicit function `model`
+argument or CLI `--model` / `--llm-model` overrides `INDEXRAG_LLM_MODEL`.
+Without `INDEXRAG_LLM_PROVIDER=orcarouter`, LLM calls retain OpenAI credentials
+and the `gpt-4o-mini` default. Selecting one provider does not silently change
+the other. Benchmark vector retrieval now shares the same embedding factory
+as index construction, so export the same embedding settings for evaluation.
+
+To generate an answer after retrieval:
+
+```python
+from indexrag.retrieval import SemanticSearch
+from benchmarks.evaluate import generate_answer
+
+question = "What connects these documents?"
+search = SemanticSearch()
+search.load_vector_store("vector_store/quickstart_indexrag")
+hits = search.search(question, top_k=3)
+context = "\n\n".join(document.page_content for document, _ in hits)
+print(generate_answer(context, question))
+```
+
+The optional GraphRAG backend keeps its own provider configuration. `.env` is
+an example configuration file; export variables into the shell (the scripts
+do not automatically load it).
 
 ## 🚀 Quick Start
 

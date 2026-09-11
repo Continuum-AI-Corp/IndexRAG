@@ -53,7 +53,7 @@ def main():
     parser = argparse.ArgumentParser(description="Extract AKUs from documents")
     parser.add_argument("--data-dir", type=str, required=True, help="Directory with .txt documents")
     parser.add_argument("--suffix", type=str, default=None, help="Cache file suffix")
-    parser.add_argument("--model", type=str, default="gpt-4o-mini", help="LLM model for extraction")
+    parser.add_argument("--model", type=str, default=None, help="LLM model for extraction")
     parser.add_argument("--chunk-size", type=int, default=2000)
     parser.add_argument("--chunk-overlap", type=int, default=200)
     parser.add_argument("--concurrency", type=int, default=10)
