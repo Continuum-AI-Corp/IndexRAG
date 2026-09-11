@@ -10,7 +10,7 @@ from typing import List, Optional, Tuple
 
 from langchain_core.documents import Document
 from langchain_community.vectorstores import FAISS
-from langchain_openai import OpenAIEmbeddings
+from ..providers import create_embeddings
 
 from .bm25_search import BM25Index, hybrid_search_bm25_embedding
 
@@ -22,10 +22,12 @@ class SemanticSearch:
 
     def __init__(
         self,
-        embedding_model: str = "text-embedding-3-small",
+        embedding_model: Optional[str] = None,
         enable_bm25: bool = True,
+        *,
+        embedding_provider: Optional[str] = None,
     ):
-        self.embeddings = OpenAIEmbeddings(model=embedding_model, chunk_size=2000)
+        self.embeddings = create_embeddings(embedding_model, embedding_provider)
         self.vector_store: Optional[FAISS] = None
         self.enable_bm25 = enable_bm25
         self.bm25_index: Optional[BM25Index] = BM25Index() if enable_bm25 else None

@@ -15,7 +15,7 @@ from typing import Dict, Any, List, Optional
 
 from langchain_core.documents import Document
 from langchain_community.vectorstores import FAISS
-from langchain_openai import OpenAIEmbeddings
+from ..providers import create_embeddings
 
 logger = logging.getLogger("indexrag.indexing")
 
@@ -24,7 +24,9 @@ def build_indexrag_store(
     vector_store_dir: Path,
     faq_data: List[Dict[str, Any]],
     bridging_data: Optional[List[Dict[str, Any]]] = None,
-    embedding_model: str = "text-embedding-3-small",
+    embedding_model: Optional[str] = None,
+    *,
+    embedding_provider: Optional[str] = None,
 ) -> bool:
     """
     Build the IndexRAG vector store (FAQ answers + bridging facts).
@@ -38,7 +40,8 @@ def build_indexrag_store(
             - entity: bridge entity name
             - sources: list of source document names
             - bridging_facts: list of fact strings
-        embedding_model: OpenAI embedding model name.
+        embedding_model: Embedding model name (or INDEXRAG_EMBEDDING_MODEL).
+        embedding_provider: openai or orcarouter (or INDEXRAG_EMBEDDING_PROVIDER).
 
     Returns:
         True if successful.
@@ -117,7 +120,7 @@ def build_indexrag_store(
     all_documents = faq_documents + bridge_documents
     logger.info(f"Total documents: {len(all_documents)}")
 
-    embeddings = OpenAIEmbeddings(model=embedding_model)
+    embeddings = create_embeddings(embedding_model, embedding_provider)
     vector_store = FAISS.from_documents(all_documents, embeddings)
     vector_store.save_local(str(vector_store_dir))
 
