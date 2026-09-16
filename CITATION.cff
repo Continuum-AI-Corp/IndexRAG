@@ -1,0 +1,48 @@
+cff-version: 1.2.0
+message: >-
+  If you use this code or build on our findings, please cite the paper below.
+title: IndexRAG
+abstract: >-
+  Index-time reasoning for multi-hop retrieval-augmented generation. Bridging
+  facts are generated during offline indexing so that cross-document inferences
+  become directly retrievable, leaving a single retrieval pass and a single LLM
+  call at inference time.
+type: software
+authors:
+  - family-names: Bao
+    given-names: Zhenghua
+    email: zheng.hua.b@gmail.com
+    affiliation: Continuum AI
+  - family-names: Shi
+    given-names: Yi
+    affiliation: Continuum AI
+repository-code: https://github.com/Continuum-AI-Corp/IndexRAG
+license: Apache-2.0
+keywords:
+  - retrieval-augmented-generation
+  - multi-hop-qa
+  - index-time-reasoning
+  - dense-retrieval
+  - document-representation
+preferred-citation:
+  type: conference-paper
+  title: >-
+    IndexRAG: Index-Time Reasoning for Multi-Hop Retrieval-Augmented Generation
+  authors:
+    - family-names: Bao
+      given-names: Zhenghua
+      email: zheng.hua.b@gmail.com
+      affiliation: Continuum AI
+    - family-names: Shi
+      given-names: Yi
+      affiliation: Continuum AI
+  collection-title: >-
+    Findings of the Association for Computational Linguistics: AACL-IJCNLP 2026
+  collection-type: proceedings
+  year: 2026
+  url: https://arxiv.org/abs/2603.16415
+  identifiers:
+    - type: other
+      value: arXiv:2603.16415
+      description: arXiv preprint, still carrying the earlier title
+  notes: To appear. Accepted to AACL-IJCNLP 2026, Findings.
