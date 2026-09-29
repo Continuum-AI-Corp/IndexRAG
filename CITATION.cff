@@ -44,5 +44,5 @@ preferred-citation:
   identifiers:
     - type: other
       value: arXiv:2603.16415
-      description: arXiv preprint, still carrying the earlier title
+      description: arXiv preprint of the same work
   notes: To appear. Accepted to AACL-IJCNLP 2026, Findings.

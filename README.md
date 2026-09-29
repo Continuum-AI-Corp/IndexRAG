@@ -50,16 +50,18 @@ The repository covers:
 ## 🔗 Citation
 
 ```bibtex
-@article{bao2026indexrag,
-  title   = {IndexRAG: Bridging Facts for Cross-Document Reasoning at Index Time},
-  author  = {Bao, Zhenghua and Shi, Yi},
-  journal = {arXiv preprint arXiv:2603.16415},
-  year    = {2026}
+@inproceedings{bao2026indexrag,
+  title     = {IndexRAG: Index-Time Reasoning for Multi-Hop Retrieval-Augmented Generation},
+  author    = {Bao, Zhenghua and Shi, Yi},
+  booktitle = {Findings of the Association for Computational Linguistics: AACL-IJCNLP 2026},
+  year      = {2026},
+  note      = {To appear},
+  url       = {https://arxiv.org/abs/2603.16415}
 }
 ```
 
-The Findings version is forthcoming. This entry will be replaced by the ACL
-Anthology one once it is available.
+This entry will be replaced by the ACL Anthology one once the proceedings are
+published.
 
 ## ✨ Key Results
 
